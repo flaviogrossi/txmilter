@@ -57,7 +57,7 @@ class MilterProtocol(Protocol):
         """
         return CONTINUE
 
-    def onEob(self):
+    def onEom(self):
         return CONTINUE
 
     def onMail(self, args):
@@ -172,7 +172,7 @@ class MilterFactory(Factory):
                                SMFIC_BODY='onBody',
                                SMFIC_CONNECT='onConnect',
                                SMFIC_MACRO='onMacro',
-                               SMFIC_BODYEOB='onEob',
+                               SMFIC_BODYEOB='onEom',
                                SMFIC_HELO='onHelo',
                                SMFIC_QUIT_NC='onQuitNewConnection',
                                SMFIC_HEADER='onHeader',
