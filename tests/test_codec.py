@@ -1,9 +1,9 @@
 import unittest
 
 from txmilter import MilterMessage
-from txmilter.txmilter import MilterEncoder
-from txmilter.txmilter import MilterDecoder
-from txmilter.txmilter import ProtocolFamily
+from txmilter.codec import MilterEncoder
+from txmilter.codec import MilterDecoder
+from txmilter.constants import ProtocolFamily
 
 
 class MilterCodecTest(unittest.TestCase):

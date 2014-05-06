@@ -1,130 +1,16 @@
-import itertools
 import struct
 
-from twisted.internet.protocol import Factory, Protocol
-from twisted.internet.endpoints import TCP4ServerEndpoint
-from twisted.internet import reactor
-from twisted.internet import defer
-from twisted.python.constants import Values
-from twisted.python.constants import ValueConstant
-
-# actions
-SMFIF_ADDHDRS = 1
-SMFIF_CHGBODY = 2
-SMFIF_ADDRCPT = 2**2
-SMFIF_DELRCPT = 2**3
-SMFIF_CHGHDRS = 2**4
-SMFIF_QUARANTINE = 2**5
-
-# protocols
-SMFIP_NOCONNECT = 1
-SMFIP_NOHELO = 2
-SMFIP_NOMAIL = 2**2
-SMFIP_NORCPT = 2**3
-SMFIP_NOBODY = 2**4
-SMFIP_NOHDRS = 2**5
-SMFIP_NOEOH = 2**6
-SMFIP_NR_HDR = 2**7
-SMFIP_NOHREPL = 2**7
-SMFIP_NOUNKNOWN = 2**8
-SMFIP_NODATA = 2**9
-SMFIP_SKIP = 2*10
-SMFIP_RCPT_REJ = 2*11
-SMFIP_NR_CONN = 2**12
-SMFIP_NR_HELO = 2**13
-SMFIP_NR_MAIL = 2**14
-SMFIP_NR_RCPT = 2**15
-SMFIP_NR_DATA = 2**16
-SMFIP_NR_UNKN = 2**17
-SMFIP_NR_EOH = 2**18
-SMFIP_NR_BODY = 2**19
-SMFIP_HDR_LEADSPC = 2**20
-
-
-class ProtocolFamily(Values):
-    """ Protocol return codes for callbacks """
-    SMFIA_UNKNOWN = ValueConstant('U')
-    SMFIA_UNIX = ValueConstant('L')
-    SMFIA_INET = ValueConstant('4')
-    SMFIA_INET6 = ValueConstant('6')
-
-    @classmethod
-    def lookupByName(cls, name):
-        try:
-            return super(ProtocolFamily, cls).lookupByName(name)
-        except ValueError:
-            return cls.SMFIA_UNKNOWN
-
-    @classmethod
-    def lookupByValue(cls, value):
-        try:
-            return super(ProtocolFamily, cls).lookupByValue(value)
-        except ValueError:
-            return cls.SMFIA_UNKNOWN
-
-
-class MilterCodec(object):
-    # https://github.com/rothsa/ruby-milter/blob/master/lib/milter.rb
-    # http://cpansearch.perl.org/src/AVAR/Sendmail-PMilter-0.98/doc/milter-protocol.txt
-
-    VALID_CMDS = set(['SMFIC_ABORT', 'SMFIC_BODY', 'SMFIC_CONNECT',
-                      'SMFIC_MACRO', 'SMFIC_BODYEOB', 'SMFIC_HELO',
-                      'SMFIC_QUIT_NC', 'SMFIC_HEADER', 'SMFIC_MAIL',
-                      'SMFIC_EOH', 'SMFIC_OPTNEG', 'SMFIC_RCPT', 'SMFIC_DATA',
-                      'SMFIC_QUIT', 'SMFIC_UNKNOWN',
-                      'SMFIR_ADDRCPT', 'SMFIR_DELRCPT', 'SMFIR_ADDRCPT_PAR',
-                      'SMFIR_ACCEPT', 'SMFIR_REPLBODY', 'SMFIR_CONTINUE',
-                      'SMFIR_DISCARD', 'SMFIR_CHGFROM', 'SMFIR_CONN_FAIL',
-                      'SMFIR_ADDHEADER', 'SMFIR_CHGHEADER', 'SMFIR_PROGRESS',
-                      'SMFIR_QUARANTINE', 'SMFIR_REJECT', 'SMFIR_SKIP',
-                      'SMFIR_TEMPFAIL', 'SMFIR_REPLYCODE', 'SMFIR_SHUTDOWN',
-                     ])
+from . import constants
+from .message import MilterMessage
 
 
 class MilterCodecError(Exception):
     """ Encoder/Decoder error """
 
 
-class MilterMessage(MilterCodec):
-    def __init__(self, cmd, data=None):
-        if cmd not in self.VALID_CMDS:
-            raise ValueError('invalid command %s' % cmd)
-        self.cmd = cmd
-        self.data = data or {}
-
-    def __str__(self):
-        return '%s<%s, %s>' % (self.__class__.__name__, self.cmd, self.data)
-
-    __repr__ = __str__
-
-    def __eq__(self, other):
-        return (self.cmd == other.cmd
-                and (sorted(self.data.iteritems())
-                     == sorted(other.data.iteritems())
-                    )
-               )
-
-    def __ne__(self, other):
-        return (self.cmd != other.cmd
-                or (sorted(self.data.iteritems())
-                    != sorted(other.data.iteritems())
-                   )
-               )
-
-
-ACCEPT = MilterMessage(cmd='SMFIR_ACCEPT')
-CONTINUE = MilterMessage(cmd='SMFIR_CONTINUE')
-REJECT = MilterMessage(cmd='SMFIR_REJECT')
-DISCARD = MilterMessage(cmd='SMFIR_DISCARD')
-TEMPFAIL = MilterMessage(cmd='SMFIR_TEMPFAIL')
-SKIP = MilterMessage(cmd='SMFIR_SKIP')
-CONN_FAIL = MilterMessage('SMFIR_CONN_FAIL')
-SHUTDOWN = MilterMessage('SMFIR_SHUTDOWN')
-
-
-class MilterEncoder(MilterCodec):
+class MilterEncoder(object):
     def encode(self, msg):
-        if msg.cmd not in self.VALID_CMDS:
+        if msg.cmd not in constants.VALID_CMDS:
             raise MilterCodecError('invalid command %s' % msg.cmd)
         method = getattr(self, '_encode_%s' % msg.cmd.lower())
         return method(msg)
@@ -287,7 +173,7 @@ class MilterEncoder(MilterCodec):
                                self._encode_str(msg.data.get('text')))
 
 
-class MilterDecoder(MilterCodec):
+class MilterDecoder(object):
     def __init__(self):
         self._data = []
         self._buf = ''
@@ -305,7 +191,7 @@ class MilterDecoder(MilterCodec):
                 return (struct.unpack(fmt, buf[:fmt_len])[0],
                         buf[fmt_len:])
         except Exception:
-            raise MilterCodec('error while decoding data ("%r")' % buf)
+            raise MilterCodecError('error while decoding data ("%r")' % buf)
 
     def decode(self):
         # a milter message is
@@ -409,7 +295,7 @@ class MilterDecoder(MilterCodec):
             raise MilterCodecError('not enough data for connect command')
 
         family, rest = self._decode_char(rest[0]), rest[1:]
-        family = ProtocolFamily.lookupByValue(family)
+        family = constants.ProtocolFamily.lookupByValue(family)
 
         port, rest = self._decode_u16(rest)
 
@@ -514,205 +400,3 @@ class MilterDecoder(MilterCodec):
         return {}
 
 
-class MilterProtocol(Protocol):
-    def connectionMade(self):
-        self.id = self.factory.getId()
-
-    def connectionLost(self, reason):
-        pass
-
-    def onConnect(self, hostname, family, port, address):
-        """ Called for each connection to the MTA. """
-        return CONTINUE
-
-    def onHelo(self, helo):
-        """ Called when the SMTP client says HELO. """
-        return CONTINUE
-
-    def onOptneg(self, version, actions, protocol):
-        """ Called for option negotiation. Only override if you now what you're
-            doing """
-        self._mta_protocols = protocol
-        self._mta_actions = actions
-        self._mta_version = version
-        data = dict(version=self.factory.version,
-                    protocol=self.factory.protocols & self._mta_protocols,
-                    actions=self.factory.actions & self._mta_actions)
-        return MilterMessage(cmd='SMFIC_OPTNEG', data=data)
-
-    def onHeader(self, name, value):
-        """ Called for each header field in the message body. """
-        return CONTINUE
-
-    def onEoh(self):
-        """ Called at the blank line that terminates the header fields. """
-        return CONTINUE
-
-    def onBody(self, buf):
-        """ Called to supply the body of the message to the Milter by chunks.
-        """
-        return CONTINUE
-
-    def onEob(self):
-        return CONTINUE
-
-    def onMail(self, args):
-        return CONTINUE
-
-    def onRcpt(self, args):
-        return CONTINUE
-
-    def onMacro(self, cmdcode, nameval):
-        return
-
-    def onAbort(self):
-        """ Called when the connection is abnormally terminated. """
-        return CONTINUE
-
-    def onData(self):
-        return CONTINUE
-
-    def onUnknown(self, data):
-        """ Called when an unknown command is received. """
-        return CONTINUE
-
-    def onQuit(self):
-        """ Called when the connection is closed. """
-        return CONTINUE
-
-    def onQuitNewConnection(self):
-        """ Called when the connection is closed but a new connection follows.
-        """
-        return CONTINUE
-
-    def protocol_mask(self, msg):
-        """ Return mask of SMFIP_N* protocol option bits to clear for this
-            class The @nocallback and @noreply decorators set the
-            milter_protocol function attribute to the protocol mask bit to pass
-            to libmilter, causing that callback or its reply to be skipped. """
-        return CONTINUE
-
-    def getsymval(self, msg):
-        """ Return the value of an MTA macro. """
-        return CONTINUE
-
-    def setreply(self, msg):
-        """ Set the SMTP reply code and message. """
-        return CONTINUE
-
-    def setsymlist(self, msg):
-        """ Tell the MTA which macro names will be used. """
-        return CONTINUE
-
-    def addheader(self, msg):
-        """ Add a mail header field. """
-        return CONTINUE
-
-    def chgheader(self, msg):
-        """ Change the value of a mail header field. """
-        return CONTINUE
-
-    def addrcpt(self, msg):
-        """ Add a recipient to the message. """
-        return CONTINUE
-
-    def delrcpt(self, msg):
-        """ Delete a recipient from the message. """
-        return CONTINUE
-
-    def replacebody(self, msg):
-        """ Replace the message body. """
-        return CONTINUE
-
-    def chgfrom(self, msg):
-        """ Change the SMTP sender address. """
-        return CONTINUE
-
-    def quarantine(self, msg):
-        """ Quarantine the message. """
-        return CONTINUE
-
-    def progress(self, msg):
-        """ Tell the MTA to wait a bit longer. """
-        return CONTINUE
-
-    def _send(self, msg):
-        if isinstance(msg, MilterMessage):
-            data = self.factory.encoder.encode(msg)
-            self.transport.write(data)
-        print '---> sent %r' % msg
-
-    def dataReceived(self, data):
-        self.factory.decoder.feed(data)
-        for msg in self.factory.decoder.decode():
-            if msg is None:
-                continue
-            print '<--- received %r' % msg
-            method_name = self.factory.handlerMap.get(msg.cmd, 'onUnknown')
-            method = getattr(self, method_name, None)
-            if method is not None:
-                defer.maybeDeferred(method, **msg.data).addCallback(self._send)
-
-
-class MilterFactory(Factory):
-
-    protocol = MilterProtocol
-
-    def __init__(self, actions=0, protocols=0):
-        self.idCounter = itertools.count()
-        self.actions = actions
-        self.protocols = protocols
-        self.version = 6
-        self.encoder = MilterEncoder()
-        self.decoder = MilterDecoder()
-
-        self.handlerMap = dict(SMFIC_ABORT='onAbort',
-                               SMFIC_BODY='onBody',
-                               SMFIC_CONNECT='onConnect',
-                               SMFIC_MACRO='onMacro',
-                               SMFIC_BODYEOB='onEob',
-                               SMFIC_HELO='onHelo',
-                               SMFIC_QUIT_NC='onQuitNewConnection',
-                               SMFIC_HEADER='onHeader',
-                               SMFIC_MAIL='onMail',
-                               SMFIC_EOH='onEoh',
-                               SMFIC_OPTNEG='onOptneg',
-                               SMFIC_RCPT='onRcpt',
-                               SMFIC_DATA='onData',
-                               SMFIC_QUIT='onQuit',
-                               SMFIC_UNKNOWN='onUnknown',
-                              )
-
-    def getId(self):
-        return next(self.idCounter)
-
-
-if __name__ == '__main__':
-    import sys
-    from twisted.python import log
-
-    log.startLogging(sys.stdout)
-    endpoint = TCP4ServerEndpoint(reactor, 8000)
-    #from twisted.internet.endpoints import UNIXServerEndpoint
-    #endpoint = UNIXServerEndpoint(reactor, './collect-master.sock')
-
-    class MyProto(MilterProtocol):
-        def onHeader(self, name, value):
-            print 'header received: <%s><%s>' % (name, value)
-            if name == 'To' and value.startswith('discardme'):
-                return DISCARD
-            elif name == 'To' and value.startswith('rejectme'):
-                return REJECT
-            else:
-                return CONTINUE
-        def onBody(self, buf):
-            print 'got body chunk <%s>' % buf
-            return CONTINUE
-        def onEob(self):
-            print 'eob'
-            return CONTINUE
-
-    factory = MilterFactory()
-    factory.protocol = MyProto
-    endpoint.listen(factory)
-    reactor.run()
