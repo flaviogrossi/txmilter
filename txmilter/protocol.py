@@ -144,14 +144,12 @@ class MilterProtocol(Protocol):
         if isinstance(msg, MilterMessage):
             data = self.factory.encoder.encode(msg)
             self.transport.write(data)
-        print '---> sent %r' % msg
 
     def dataReceived(self, data):
         self.factory.decoder.feed(data)
         for msg in self.factory.decoder.decode():
             if msg is None:
                 continue
-            print '<--- received %r' % msg
             method_name = self.factory.handlerMap.get(msg.cmd, 'onUnknown')
             method = getattr(self, method_name, None)
             if method is not None:
