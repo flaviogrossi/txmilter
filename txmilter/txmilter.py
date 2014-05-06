@@ -80,8 +80,6 @@ class MilterCodec(object):
                       'SMFIR_TEMPFAIL', 'SMFIR_REPLYCODE', 'SMFIR_SHUTDOWN',
                      ])
 
-    MILTER_CHUNK_SIZE = 65535
-
 
 class MilterCodecError(Exception):
     """ Encoder/Decoder error """
