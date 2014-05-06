@@ -52,3 +52,9 @@ coverage.xml
 # Sphinx documentation
 docs/_build/
 
+# vim swap files
+*.swp
+*.swo
+
+# twisted trial files
+_trial_temp
