@@ -112,9 +112,10 @@ class MilterProtocol(Protocol):
         """ Add a mail header field. """
         return CONTINUE
 
-    def chgheader(self, msg):
+    def chgHeader(self, index, name, value):
         """ Change the value of a mail header field. """
-        return CONTINUE
+        data = {'name': name, 'value': value, 'index': index}
+        return self._send(MilterMessage('SMFIR_CHGHEADER', data))
 
     def addrcpt(self, msg):
         """ Add a recipient to the message. """
@@ -132,9 +133,10 @@ class MilterProtocol(Protocol):
         """ Change the SMTP sender address. """
         return CONTINUE
 
-    def quarantine(self, msg):
-        """ Quarantine the message. """
-        return CONTINUE
+    def quarantine(self, reason):
+        """ Quarantine the message with the given reason. """
+        message = MilterMessage('SMFIR_QUARANTINE', {'reason': reason})
+        return self._send(message)
 
     def progress(self, msg):
         """ Tell the MTA to wait a bit longer. """
