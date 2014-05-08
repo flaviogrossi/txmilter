@@ -117,13 +117,19 @@ class MilterProtocol(Protocol):
         data = {'name': name, 'value': value, 'index': index}
         return self._send(MilterMessage('SMFIR_CHGHEADER', data))
 
-    def addrcpt(self, msg):
-        """ Add a recipient to the message. """
-        return CONTINUE
+    def addrcpt(self, rcpt):
+        """ Add a recipient to the message.
+            This method can only be calld from within onEom().
+        """
+        message = MilterMessage('SMFIR_ADDRCPT', {'rcpt': rcpt})
+        return self._send(message)
 
-    def delrcpt(self, msg):
-        """ Delete a recipient from the message. """
-        return CONTINUE
+    def delrcpt(self, rcpt):
+        """ Delete a recipient from the message.
+            This method can only be calld from within onEom().
+        """
+        message = MilterMessage('SMFIR_DELRCPT', {'rcpt': rcpt})
+        return self._send(message)
 
     def replacebody(self, msg):
         """ Replace the message body. """
