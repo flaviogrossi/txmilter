@@ -108,23 +108,24 @@ class MilterProtocol(Protocol):
         """ Tell the MTA which macro names will be used. """
         return CONTINUE
 
-    def addheader(self, msg):
+    def addHeader(self, name, value):
         """ Add a mail header field. """
-        return CONTINUE
+        data = {'name': name, 'value': value}
+        return self._send(MilterMessage('SMFIR_ADDHEADER', data))
 
     def chgHeader(self, index, name, value):
         """ Change the value of a mail header field. """
         data = {'name': name, 'value': value, 'index': index}
         return self._send(MilterMessage('SMFIR_CHGHEADER', data))
 
-    def addrcpt(self, rcpt):
+    def addRcpt(self, rcpt):
         """ Add a recipient to the message.
             This method can only be calld from within onEom().
         """
         message = MilterMessage('SMFIR_ADDRCPT', {'rcpt': rcpt})
         return self._send(message)
 
-    def delrcpt(self, rcpt):
+    def delRcpt(self, rcpt):
         """ Delete a recipient from the message.
             This method can only be calld from within onEom().
         """
