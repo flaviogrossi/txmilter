@@ -104,7 +104,7 @@ class MilterDecoderTest(MilterCodecTest):
     def setUp(self):
         self.decoder = MilterDecoder()
 
-    def test_encode_messages(self):
+    def test_decode_messages(self):
         for msg, encoded in self.msgs:
             self.decoder.feed(encoded)
             self.assertEquals(next(self.decoder.decode()), msg)
@@ -118,6 +118,20 @@ class MilterDecoderTest(MilterCodecTest):
             res.append(m)
 
         self.assertEquals(messages, res)
+
+    def test_chunked_messages(self):
+        chunks = ('\x00\x00\x00\x07Bmy', 'body')
+
+        decoded = []
+        for chunk in chunks:
+            self.decoder.feed(chunk)
+            try:
+                decoded.append(next(self.decoder.decode()))
+            except StopIteration:
+                pass
+        self.assertEquals(len(decoded), 1)
+        self.assertEquals(decoded[0],
+                          MilterMessage('SMFIC_BODY', dict(buf='mybody')))
 
 
 class MilterEncoderTest(MilterCodecTest):
