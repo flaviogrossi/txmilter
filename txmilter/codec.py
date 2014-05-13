@@ -202,17 +202,14 @@ class MilterDecoder(object):
         while True:
             length, rest = self._decode(''.join(self._data), '!I')
             if length is None or length == 0:
-                self._data = [rest]
                 break
 
             cmd, rest = self._decode(rest, 'c')
             if cmd is None:
-                self._data = [rest]
                 break
 
             data_len = length - 1
             if len(rest) < data_len:
-                self._data = [cmd, rest]
                 break
 
             self._data = [rest[data_len:]]
