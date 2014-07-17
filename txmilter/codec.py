@@ -271,8 +271,11 @@ class MilterDecoder(object):
     def _decode_char(self, data):
         return data
 
-    def _decode_strs(self, data):
-        return list(i for i in data.split('\0') if i)
+    def _decode_strs(self, data, ignore_emtpy=True):
+        if ignore_emtpy:
+            return list(i for i in data.split('\0') if i)
+        else:
+            return data.split('\0')
 
     def _decode_u16(self, data):
         try:
@@ -316,8 +319,8 @@ class MilterDecoder(object):
         return {'helo': self._decode_str(data)[0]}
 
     def _decode_smfic_header_data(self, data):
-        args = self._decode_strs(data)
-        if len(args) != 2:
+        args = self._decode_strs(data, ignore_emtpy=False)
+        if len(args) < 2:
             raise MilterCodecError('invalid data for header response')
         return dict(name=args[0], value=args[1])
 
