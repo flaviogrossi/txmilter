@@ -3,7 +3,7 @@
 %endif
 
 Name:           python-txmilter
-Version:        0.0.1
+Version:        0.0.2
 Release:        1%{?dist}
 Summary:        Twisted library for the milter protocol
 Group:          Development/Libraries
@@ -42,5 +42,8 @@ rm -rf $RPM_BUILD_ROOT
 %{python_sitelib}/txmilter*egg-info
 
 %changelog
+* Thu Jul 17 2014 Flavio Grossi <flaviogrossi@gmail.com>
+- fix when decoding headers with an empty value.
+
 * Tue May 6 2014 Flavio Grossi <flaviogrossi@gmail.com>
 - first rpm release.
