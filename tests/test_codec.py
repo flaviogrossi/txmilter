@@ -133,6 +133,13 @@ class MilterDecoderTest(MilterCodecTest):
         self.assertEquals(decoded[0],
                           MilterMessage('SMFIC_BODY', dict(buf='mybody')))
 
+    def test_smfic_header_decode_with_empty_value(self):
+        # test SMFIC_HEADER decoding when header has an empty value
+        msg = MilterMessage('SMFIC_HEADER', dict(name='to', value=''))
+        encoded = '\x00\x00\x00\x05Lto\x00\x00'
+        self.decoder.feed(encoded)
+        self.assertEquals(next(self.decoder.decode()), msg)
+
 
 class MilterEncoderTest(MilterCodecTest):
     def setUp(self):
