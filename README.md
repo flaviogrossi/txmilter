@@ -2,7 +2,7 @@ TxMilter
 ========
 
 A work in progress Twisted library for the
-[milter](https://www.milter.org/developers/api/index "Milter") protocol.
+[milter](https://en.wikipedia.org/wiki/Milter) protocol.
 
 
 Credits
